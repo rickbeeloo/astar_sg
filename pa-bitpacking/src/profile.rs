@@ -63,19 +63,13 @@ impl Profile for ScatterProfile {
         let start_time = Instant::now();
         let pa = a.iter().map(|ca| {
             let idx = *ca as usize;
-            if CHAR_LUT[idx] == 0 && *ca != b'a' && *ca != b'A' {
-                panic!("Unknown base {}", *ca as char);
-            }
             CC(CHAR_LUT[idx])
         }).collect_vec();
 
+        // Now defaults to 0 so A/a, we could panic instead if char != a/A but MASK_LUT[c] == 0 
         let mut pb = vec![[0; 4]; b.len().div_ceil(W)];
         for (j, cb) in b.iter().enumerate() {
-            let mask = MASK_LUT[*cb as usize];
-            // Check if we got a zero mask for a non-zero character
-            if mask == [0; 4] && *cb != b'a' && *cb != b'A' {
-                panic!("Unknown base {}", *cb as char);
-            }
+            let mask = MASK_LUT[*cb as usize];               
             for (i, &m) in mask.iter().enumerate() {
                 pb[j / W][i] |= m << (j % W);
             }
