@@ -1,7 +1,7 @@
 use bio::alphabets::{Alphabet, RankTransform};
 use itertools::Itertools;
 use pa_types::{Seq, I};
-use std::time::Instant;
+
 use crate::{B, W};
 
 /// Builds a 'profile' of `b` in `64`-bit blocks, and compressed `a` into a `[0,1,2,3]` alphabet.
@@ -27,51 +27,33 @@ impl Profile for ScatterProfile {
     type B = [B; 4];
 
     fn build(a: Seq, b: Seq) -> (Vec<CC>, Vec<Self::B>) {
-        const CHAR_LUT: [u8; 256] = {
-            let mut lut = [0u8; 256];
-            lut[b'a' as usize] = 0;
-            lut[b'A' as usize] = 0;
-            lut[b'c' as usize] = 1;
-            lut[b'C' as usize] = 1;
-            lut[b't' as usize] = 2;
-            lut[b'T' as usize] = 2;
-            lut[b'g' as usize] = 3;
-            lut[b'G' as usize] = 3;
-            lut
-        };
-
-        const MASK_LUT: [[u64; 4]; 256] = {
-            let mut lut = [[0; 4]; 256];
-            lut[b'a' as usize] = [1, 0, 0, 0];
-            lut[b'A' as usize] = [1, 0, 0, 0];
-            lut[b'c' as usize] = [0, 1, 0, 0];
-            lut[b'C' as usize] = [0, 1, 0, 0];
-            lut[b't' as usize] = [0, 0, 1, 0];
-            lut[b'T' as usize] = [0, 0, 1, 0];
-            lut[b'g' as usize] = [0, 0, 0, 1];
-            lut[b'G' as usize] = [0, 0, 0, 1];
-            lut[b'n' as usize] = [1, 1, 1, 1];
-            lut[b'N' as usize] = [1, 1, 1, 1];
-            lut[b'*' as usize] = [1, 1, 1, 1];
-            lut[b'y' as usize] = [0, 1, 1, 0];
-            lut[b'Y' as usize] = [0, 1, 1, 0];
-            lut[b'r' as usize] = [1, 0, 0, 1];
-            lut[b'R' as usize] = [1, 0, 0, 1];
-            lut
-        };
-
-        let start_time = Instant::now();
-        let pa = a.iter().map(|ca| {
-            let idx = *ca as usize;
-            CC(CHAR_LUT[idx])
-        }).collect_vec();
-
-        // Now defaults to 0 so A/a, we could panic instead if char != a/A but MASK_LUT[c] == 0 
+        fn get_char(c: u8) -> u8 {
+            match c {
+                b'a' | b'A' => 0,
+                b'c' | b'C' => 1,
+                b't' | b'T' => 2,
+                b'g' | b'G' => 3,
+                _ => panic!(),
+            }
+        }
+        fn get_mask(c: u8) -> [u64; 4] {
+            match c {
+                b'a' | b'A' => [1, 0, 0, 0],
+                b'c' | b'C' => [0, 1, 0, 0],
+                b't' | b'T' => [0, 0, 1, 0],
+                b'g' | b'G' => [0, 0, 0, 1],
+                b'n' | b'N' | b'*' => [1, 1, 1, 1],
+                b'y' | b'Y' => [0, 1, 1, 0], // C or T
+                b'r' | b'R' => [1, 0, 0, 1], // A or G
+                x => panic!("Unknown base {}", x as char),
+            }
+        }
+        let pa = a.iter().map(|ca| CC(get_char(*ca))).collect_vec();
         let mut pb = vec![[0; 4]; b.len().div_ceil(W)];
         for (j, cb) in b.iter().enumerate() {
-            let mask = MASK_LUT[*cb as usize];               
-            for (i, &m) in mask.iter().enumerate() {
-                pb[j / W][i] |= m << (j % W);
+            let mask = get_mask(*cb);
+            for i in 0..4 {
+                pb[j / W][i] |= mask[i] << (j % W);
             }
         }
         for j in b.len()..b.len().next_multiple_of(W) {
@@ -79,8 +61,6 @@ impl Profile for ScatterProfile {
                 *x |= 1 << (j % W);
             }
         }
-        let end_time = Instant::now();
-        println!("Time taken: {:?}", end_time - start_time);
         (pa, pb)
     }
 
