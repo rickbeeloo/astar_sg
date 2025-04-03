@@ -1,7 +1,7 @@
 use bio::alphabets::{Alphabet, RankTransform};
 use itertools::Itertools;
 use pa_types::{Seq, I};
-
+use std::time::Instant;
 use crate::{B, W};
 
 /// Builds a 'profile' of `b` in `64`-bit blocks, and compressed `a` into a `[0,1,2,3]` alphabet.
@@ -48,6 +48,7 @@ impl Profile for ScatterProfile {
                 x => panic!("Unknown base {}", x as char),
             }
         }
+        let start_time = Instant::now();
         let pa = a.iter().map(|ca| CC(get_char(*ca))).collect_vec();
         let mut pb = vec![[0; 4]; b.len().div_ceil(W)];
         for (j, cb) in b.iter().enumerate() {
@@ -61,6 +62,7 @@ impl Profile for ScatterProfile {
                 *x |= 1 << (j % W);
             }
         }
+        println!("Time taken: {:?}", start_time.elapsed());
         (pa, pb)
     }
 
