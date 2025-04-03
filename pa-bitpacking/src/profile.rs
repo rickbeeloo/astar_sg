@@ -60,7 +60,6 @@ impl Profile for ScatterProfile {
             lut
         };
 
-        let start_time = Instant::now();
         let pa = a.iter().map(|ca| {
             let idx = *ca as usize;
             CC(CHAR_LUT[idx])
@@ -79,8 +78,7 @@ impl Profile for ScatterProfile {
                 *x |= 1 << (j % W);
             }
         }
-        let end_time = Instant::now();
-        println!("Time taken: {:?}", end_time - start_time);
+       
         (pa, pb)
     }
 
